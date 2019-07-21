@@ -47,6 +47,58 @@ static interval_set *new_set(void) {
   set->head = NULL;
   return set;
 }
+
+/*
+ *  From...
+ *    A        return=C
+ *   / \             / \
+ *  B   C           A   E
+ *     / \         / \
+ *    D   E       B   D
+ * Preserving: B < A < D < C < E
+ *
+ *    A         A         A   return=C
+ *   / \       / \       / \        / \
+ *  B   C  => B   C  => B   D      A   E
+ *     / \       / \              / \
+ *    D   E     A   E            B   D
+ */
+static _s_interval_set_node *rotate_left(_s_interval_set_node *node) {
+
+  _s_interval_set_node *tmp = node->right->left; // D, above
+  node->right->left = node;                      // C->left  <- A
+  _s_interval_set_node *ret = node->right;       // C, above
+  node->right = tmp;                             // C->right <- D
+
+  // Recalculate height of A;
+  node->height = 1 + max_height(node->right, node->left);
+
+  // Recalculate height of C;
+  ret->height = 1 + max_height(ret->right, ret->left);
+
+  return ret;
+}
+
+/*
+ * The opposite of rotate left
+ */
+static _s_interval_set_node *rotate_right(_s_interval_set_node *node) {
+
+  _s_interval_set_node *tmp = node->left->right;
+  node->left->right = node;
+  _s_interval_set_node *ret = node->left;
+  node->left = tmp;
+
+  node->height = 1 + max_height(node->right, node->left);
+
+  ret->height = 1 + max_height(ret->right, ret->left);
+  return ret;
+}
+
+static int get_balance(_s_interval_set_node *node) {
+  return CHECKED_HEIGHT(node->left) - CHECKED_HEIGHT(node->right);
+}
+
 /*
  * Recursively traverses `node` and inserts `interval` at the
  * appropriate position.
@@ -67,60 +119,38 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
   // Increment the height
   node->height = 1 + max_height(node->right, node->left);
 
-  int balance = CHECKED_HEIGHT(node->left) - CHECKED_HEIGHT(node->left);
+  int balance = get_balance(node);
+  printf("node at %p is height %d and with balance %d\n", node, node->height,
+         balance);
 
-  printf("node at %p is height %d and with balance %d\n", node, node->height, balance);
-
-  return node;
+  if (balance > 1) {
+    // The left branch is too heavy
+    if (get_balance(node->left) < 0) {
+      /* Left/Right heavier than Left/Left,
+       * 1) Rotate A(first left) to the left.
+       * 2) Rotate C(the root) to the right.
+       *     C           C           D
+       *    / \         / \         / \
+       *   A   E       D   E       /   \
+       *  / \     =>  / \    =>   A     C
+       * B   D       A   G       / \   / \
+       *    / \     / \         B   F G   E
+       *   F   G   B   F
+       */
+      return rotate_left(node->left);
+    }
+    // Just rotate right; (2) above.
+    return rotate_right(node);
+  } else if (balance < -1) {
+    // the right branch is too heavy; Do the opposite of above
+    if (get_balance(node->right) > 0) {
+      return rotate_right(node->right);
+    }
+    return rotate_left(node);
+  } else {
+    return node;
+  }
 }
-
-/*
- *  From...
- *    A        return=C
- *   / \             / \
- *  B   C           A   E
- *     / \         / \
- *    D   E       B   D
- * Preserving: B < A < D < C < E
- *
- *    A         A         A   return=C
- *   / \       / \       / \        / \
- *  B   C  => B   C  => B   D      A   E
- *     / \       / \              / \
- *    D   E     A   E            B   D
- */
-static _s_interval_set_node *rotate_left(_s_interval_set_node *node){
-
-  _s_interval_set_node *tmp = node->right->left; // D, above
-  node->right->left = node;                      // C->left  <- A
-  _s_interval_set_node *ret = node->right;       // C, above
-  node->right = tmp;                             // C->right <- D
-
-  // Recalculate height of A;
-  node->height = 1 + max_height(node->right, node->left);
-
-  // Recalculate height of C;
-  ret->height = 1 + max_height(ret->right, ret->left);
-
-  return ret;
-}
-
-/*
- * The opposite of rotate left
- */
-static _s_interval_set_node *rotate_right(_s_interval_set_node *node){
-
-  _s_interval_set_node *tmp = node->left->right;
-  node->left->right = node;
-  _s_interval_set_node *ret = node->left;
-  node->left = tmp;
-
-  node->height = 1 + max_height(node->right, node->left);
-
-  ret->height = 1 + max_height(ret->right, ret->left);
-  return ret;
-}
-
 static void print_set_node(_s_interval_set_node *node, int idx) {
   int i;
   if (node) {
