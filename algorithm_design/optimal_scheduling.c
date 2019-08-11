@@ -120,15 +120,15 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
   node->height = 1 + max_height(node->right, node->left);
 
   int balance = get_balance(node);
-  printf("node at %p is height %d and with balance %d\n", node, node->height,
-         balance);
+  // printf("node at %p is height %d and with balance %d\n", node, node->height,
+  // balance);
 
   if (balance > 1) {
     // The left branch is too heavy
     if (get_balance(node->left) < 0) {
       /* Left/Right heavier than Left/Left,
-       * 1) Rotate A(first left) to the left.
-       * 2) Rotate C(the root) to the right.
+       * (1) Rotate A(first left) to the left.
+       * (2) Rotate C(the root) to the right.
        *     C           C           D
        *    / \         / \         / \
        *   A   E       D   E       /   \
@@ -153,19 +153,20 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
 }
 static void print_set_node(_s_interval_set_node *node, int idx) {
   int i;
+
   if (node) {
     for (i = 0; i < idx; i++) {
-      printf(".");
+      printf(" ");
     }
 
+    //print_interval(node->val);
+    printf(".\n");
     print_set_node(node->right, idx + 1);
-    print_interval(node->val);
     print_set_node(node->left, idx + 1);
   }
 }
 
 static void set_add(interval_set *set, s_interval *interval) {
-
   set->head = insert(set->head, interval, 0);
 }
 
@@ -198,8 +199,9 @@ int main() {
     }
 
   } while (line);
-  // print_set_node(set->head, 0);
-
   fclose(f_in);
+
+  print_set_node(set->head, 0);
+
   return 0;
 }
