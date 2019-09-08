@@ -37,7 +37,7 @@ typedef struct NodeCounter {
  *
  */
 static void print_interval(s_interval *interval) {
-  printf("%d ... %d\n", interval->from, interval->to);
+  printf("%d ... %d", interval->from, interval->to);
 }
 
 /*
@@ -114,6 +114,46 @@ static int get_balance(_s_interval_set_node *node) {
   return CHECKED_HEIGHT(node->left) - CHECKED_HEIGHT(node->right);
 }
 
+static _s_interval_set_node *balance_tree(_s_interval_set_node *node) {
+  // Increment the height
+  node->height = 1 + max_height(node->right, node->left);
+
+  // Rebalance the tree
+  int balance = get_balance(node);
+
+  if (balance > 1) {
+    // The left branch is too heavy
+    if (get_balance(node->left) < 0) {
+
+      /* Left/Right is heavier than Left/Left,
+       * (1) Rotate A(first left) to the left.
+       * (2) Rotate C(the root) to the right.
+       *     C           C           D
+       *    / \         / \         / \
+       *   A   E       D   E       /   \
+       *  / \     =>  / \    =>   A     C
+       * B   D       A   G       / \   / \
+       *    / \     / \         B   F G   E
+       *   F   G   B   F
+       */
+      node->left = rotate_left(node->left);
+    }
+
+    // Left/Left is heavier than Left/Right; Just rotate right - (2) above.
+    return rotate_right(node);
+
+  } else if (balance < -1) {
+    // the right branch is too heavy; Do the opposite of above
+    if (get_balance(node->right) > 0) {
+      node->right = rotate_right(node->right);
+    }
+    return rotate_left(node);
+  } else {
+    // The tree is balanced
+    return node;
+  }
+}
+
 /*
  * Recursively traverse `node` and inserts `interval` at the
  * appropriate position.
@@ -131,92 +171,14 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
      * 'completion' of the interval in the optimal scheduling
      * algorithm.
      */
-  } else if (node->val->to < interval->to) {
+  } else if (node->val->to >= interval->to) {
     node->left = insert(node->left, interval, d + 1);
   } else {
     node->right = insert(node->right, interval, d + 1);
   }
 
-  // Increment the height
-  node->height = 1 + max_height(node->right, node->left);
-
-  // Rebalance the tree
-  int balance = get_balance(node);
-
-  if (balance > 1) {
-    // The left branch is too heavy
-    if (get_balance(node->left) < 0) {
-
-      /* Left/Right is heavier than Left/Left,
-       * (1) Rotate A(first left) to the left.
-       * (2) Rotate C(the root) to the right.
-       *     C           C           D
-       *    / \         / \         / \
-       *   A   E       D   E       /   \
-       *  / \     =>  / \    =>   A     C
-       * B   D       A   G       / \   / \
-       *    / \     / \         B   F G   E
-       *   F   G   B   F
-       */
-      return rotate_left(node->left);
-    }
-
-    // Left/Left is heavier than Left/Right; Just rotate right - (2) above.
-    return rotate_right(node);
-
-  } else if (balance < -1) {
-    // the right branch is too heavy; Do the opposite of above
-    if (get_balance(node->right) > 0) {
-      return rotate_right(node->right);
-    }
-    return rotate_left(node);
-  } else {
-    // The tree is balanced
-    return node;
-  }
+  return balance_tree(node);
 }
-
-static _s_interval_set_node * balance_tree(_s_interval_set_node *node) {
-  // Increment the height
-  node->height = 1 + max_height(node->right, node->left);
-
-  // Rebalance the tree
-  int balance = get_balance(node);
-
-  if (balance > 1) {
-    // The left branch is too heavy
-    if (get_balance(node->left) < 0) {
-
-      /* Left/Right is heavier than Left/Left,
-       * (1) Rotate A(first left) to the left.
-       * (2) Rotate C(the root) to the right.
-       *     C           C           D
-       *    / \         / \         / \
-       *   A   E       D   E       /   \
-       *  / \     =>  / \    =>   A     C
-       * B   D       A   G       / \   / \
-       *    / \     / \         B   F G   E
-       *   F   G   B   F
-       */
-      return rotate_left(node->left);
-    }
-
-    // Left/Left is heavier than Left/Right; Just rotate right - (2) above.
-    return rotate_right(node);
-
-  } else if (balance < -1) {
-    // the right branch is too heavy; Do the opposite of above
-    if (get_balance(node->right) > 0) {
-      return rotate_right(node->right);
-    }
-    return rotate_left(node);
-  } else {
-    // The tree is balanced
-    return node;
-  }
-
-}
-
 
 /*
  *
@@ -241,7 +203,6 @@ static node_counter pop_left(_s_interval_set_node *node) {
         node->left = NULL;
       }
     }
-
 
     min_node.counter++;
   } else {
@@ -296,44 +257,64 @@ s_interval *parse_line(char *line) {
 /*
  *
  */
-static void print_set_node(_s_interval_set_node *node, int idx) {
+static void print_set_node(_s_interval_set_node *node) {
   int i;
 
   if (node) {
-    for (i = 0; i < idx; i++) {
-      printf(" ");
+    for (i = 0; i < node->height; i++) {
+      printf("\t");
     }
-
-    // print_interval(node->val);
-    printf(".\n");
-    print_set_node(node->right, idx + 1);
-    print_set_node(node->left, idx + 1);
+    print_set_node(node->left);
+    print_interval(node->val);
+    print_set_node(node->right);
   }
+}
+
+static s_interval *new_interval(int from, int to) {
+  s_interval *i0 = malloc(sizeof(s_interval));
+
+  i0->from = from;
+  i0->to = to;
+  return i0;
 }
 
 static void optimal_schedule(interval_set *set) { set_pop_min(set); }
 
 int main() {
-  FILE *f_in = fopen("./data/intervals1.dat", "r");
-
-  char buf[100] = {'\0'};
-  char *line;
 
   interval_set *set = new_set();
 
-  do {
-    line = fgets(buf, 100, f_in);
+  s_interval *i0 = new_interval(3, 4);
+  s_interval *i1 = new_interval(4, 5);
+  s_interval *i2 = new_interval(2, 6);
 
-    if (line) {
-      s_interval *i0 = parse_line(line);
-      set_add(set, i0);
-    }
+  set_add(set, i2);
+  set_add(set, i0);
+  set_add(set, i1);
 
-  } while (line);
-  fclose(f_in);
+  print_set_node(set->head);
 
-  print_set_node(set->head, 0);
-  optimal_schedule(set);
-
-  return 0;
+  //  FILE *f_in = fopen("./data/intervals1.dat", "r");
+  //
+  //  char buf[100] = {'\0'};
+  //  char *line;
+  //
+  //  interval_set *set = new_set();
+  //
+  //  do {
+  //    line = fgets(buf, 100, f_in);
+  //
+  //    if (line) {
+  //      s_interval *i0 = parse_line(line);
+  //      set_add(set, i0);
+  //    }
+  //
+  //  } while (line);
+  //  fclose(f_in);
+  //
+  //  printf("%d", set->head->height);
+  //  print_set_node(set->head, 0);
+  //  // optimal_schedule(set);
+  //
+  //  return 0;
 }
