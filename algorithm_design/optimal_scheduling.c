@@ -176,23 +176,79 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
   }
 }
 
-static node_counter descend_left(_s_interval_set_node *node, int to_height) {
-  node_counter left_most = {NULL, 0};
+static _s_interval_set_node * balance_tree(_s_interval_set_node *node) {
+  // Increment the height
+  node->height = 1 + max_height(node->right, node->left);
+
+  // Rebalance the tree
+  int balance = get_balance(node);
+
+  if (balance > 1) {
+    // The left branch is too heavy
+    if (get_balance(node->left) < 0) {
+
+      /* Left/Right is heavier than Left/Left,
+       * (1) Rotate A(first left) to the left.
+       * (2) Rotate C(the root) to the right.
+       *     C           C           D
+       *    / \         / \         / \
+       *   A   E       D   E       /   \
+       *  / \     =>  / \    =>   A     C
+       * B   D       A   G       / \   / \
+       *    / \     / \         B   F G   E
+       *   F   G   B   F
+       */
+      return rotate_left(node->left);
+    }
+
+    // Left/Left is heavier than Left/Right; Just rotate right - (2) above.
+    return rotate_right(node);
+
+  } else if (balance < -1) {
+    // the right branch is too heavy; Do the opposite of above
+    if (get_balance(node->right) > 0) {
+      return rotate_right(node->right);
+    }
+    return rotate_left(node);
+  } else {
+    // The tree is balanced
+    return node;
+  }
+
+}
+
+
+/*
+ *
+ */
+static node_counter pop_left(_s_interval_set_node *node) {
+  node_counter min_node = {NULL, 0};
 
   if (node && node->left) {
-    left_most = descend_left(node->left, to_height);
-    left_most.counter++; // Count height from the min in the tree
-  }
-  /* Otherwise, node is the left most node(or the set is empty). In both
-   * cases return {NULL, 0}
-   */
+    min_node = pop_left(node->left);
 
-  if (to_height == left_most.counter) {
-    // Pass the node at to_height up the backtrace.
-    left_most.node = node;
+    if (min_node.counter == 0) {
+      if (min_node.node->right) {
+        /* with C as `node`
+         *     C           C
+         *    / \         / \
+         *   A   E       D   E
+         *    \     =>
+         *     D
+         */
+        node->left = min_node.node->right;
+      } else {
+        node->left = NULL;
+      }
+    }
+
+
+    min_node.counter++;
+  } else {
+    min_node.node = node;
   }
 
-  return left_most;
+  return min_node;
 }
 
 /*
@@ -206,10 +262,15 @@ static void set_add(interval_set *set, s_interval *interval) {
  *
  */
 static s_interval *set_pop_min(interval_set *set) {
-  node_counter counted_node = descend_left(set->head, 1);
+  node_counter counted_node = pop_left(set->head);
+
+  if (!counted_node.node) {
+    return NULL;
+  }
+
   _s_interval_set_node *min_node = counted_node.node->left;
 
-  s_interval * ret = min_node->val;
+  s_interval *ret = min_node->val;
 
   if (min_node->right) {
     counted_node.node->left = min_node->right;
@@ -250,6 +311,8 @@ static void print_set_node(_s_interval_set_node *node, int idx) {
   }
 }
 
+static void optimal_schedule(interval_set *set) { set_pop_min(set); }
+
 int main() {
   FILE *f_in = fopen("./data/intervals1.dat", "r");
 
@@ -270,6 +333,7 @@ int main() {
   fclose(f_in);
 
   print_set_node(set->head, 0);
+  optimal_schedule(set);
 
   return 0;
 }
