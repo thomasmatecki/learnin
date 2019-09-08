@@ -261,11 +261,12 @@ static void print_set_node(_s_interval_set_node *node) {
   int i;
 
   if (node) {
-    for (i = 0; i < node->height; i++) {
-      printf("\t");
-    }
     print_set_node(node->left);
+    for (i = 0; i < node->height; i++) {
+      printf(".");
+    }
     print_interval(node->val);
+    printf("\n");
     print_set_node(node->right);
   }
 }
@@ -284,37 +285,38 @@ int main() {
 
   interval_set *set = new_set();
 
-  s_interval *i0 = new_interval(3, 4);
-  s_interval *i1 = new_interval(4, 5);
-  s_interval *i2 = new_interval(2, 6);
+  // s_interval *i0 = new_interval(3, 4);
+  // s_interval *i1 = new_interval(4, 5);
+  // s_interval *i2 = new_interval(2, 6);
+  // s_interval *i3 = new_interval(2, 3);
+  // s_interval *i4 = new_interval(2, 4);
 
-  set_add(set, i2);
-  set_add(set, i0);
-  set_add(set, i1);
+  // set_add(set, i1);
+  // set_add(set, i2);
+  // set_add(set, i0);
+  // set_add(set, i3);
+  // set_add(set, i4);
 
   print_set_node(set->head);
 
-  //  FILE *f_in = fopen("./data/intervals1.dat", "r");
-  //
-  //  char buf[100] = {'\0'};
-  //  char *line;
-  //
-  //  interval_set *set = new_set();
-  //
-  //  do {
-  //    line = fgets(buf, 100, f_in);
-  //
-  //    if (line) {
-  //      s_interval *i0 = parse_line(line);
-  //      set_add(set, i0);
-  //    }
-  //
-  //  } while (line);
-  //  fclose(f_in);
-  //
-  //  printf("%d", set->head->height);
-  //  print_set_node(set->head, 0);
-  //  // optimal_schedule(set);
-  //
-  //  return 0;
+  FILE *f_in = fopen("./data/intervals1.dat", "r");
+
+  char buf[100] = {'\0'};
+  char *line;
+
+  do {
+    line = fgets(buf, 100, f_in);
+
+    if (line) {
+      s_interval *i0 = parse_line(line);
+      set_add(set, i0);
+    }
+
+  } while (line);
+  fclose(f_in);
+
+  print_set_node(set->head);
+  // optimal_schedule(set);
+
+  return 0;
 }
