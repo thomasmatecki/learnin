@@ -37,10 +37,10 @@ typedef struct IntervalSet {
   _s_interval_set_node *head;
 } interval_set;
 
-typedef struct PopCounter {
+typedef struct BackTracedNode {
   _s_interval_set_node *node;
-  int counter;
-} pop_counter;
+  int depth;
+} back_traced_node;
 
 /*
  *
@@ -53,13 +53,13 @@ static void print_interval(s_interval *interval) {
  *
  */
 int max_height(_s_interval_set_node *node_a, _s_interval_set_node *node_b) {
-  int a_depth = CHECKED_HEIGHT(node_a);
-  int b_depth = CHECKED_HEIGHT(node_b);
+  int a_height = CHECKED_HEIGHT(node_a);
+  int b_height = CHECKED_HEIGHT(node_b);
 
-  if (a_depth > b_depth) {
-    return a_depth;
+  if (a_height > b_height) {
+    return a_height;
   } else {
-    return b_depth;
+    return b_height;
   }
 }
 
@@ -192,13 +192,13 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
 /*
  *
  */
-static pop_counter pop_left(_s_interval_set_node *node) {
-  pop_counter popped_node = {NULL, 0};
+static back_traced_node pop_left(_s_interval_set_node *node) {
+  back_traced_node popped_node = {NULL, 0};
 
   if (node && node->left) {
     popped_node = pop_left(node->left);
 
-    if (popped_node.counter == 0) {
+    if (popped_node.depth == 0) {
 
       if (popped_node.node->right) {
         /* with C as `node`, if popping A
@@ -225,7 +225,7 @@ static pop_counter pop_left(_s_interval_set_node *node) {
       node->left = balance_tree(node->left);
     }
 
-    popped_node.counter++;
+    popped_node.depth++;
   } else {
     popped_node.node = node;
   }
@@ -244,9 +244,9 @@ static void set_add(interval_set *set, s_interval *interval) {
  *
  */
 static s_interval *set_pop_min(interval_set *set) {
-  pop_counter popped_node = pop_left(set->head);
+  back_traced_node popped_node = pop_left(set->head);
 
-  if (popped_node.counter == 0) {
+  if (popped_node.depth == 0) {
     set->head == NULL;
   }
 
@@ -428,7 +428,7 @@ static int test_set_add_rotates_once_if_min_inserted_3_times(){
   assert(NULL == set->head->left->right);
 }
 
-static int test_set_add_maintains_ordering_in_nodes_with_depth_1(){
+static int test_set_add_maintains_ordering_in_nodes_with_height_1(){
   interval_set *set = new_set();
 
   s_interval *i0 = new_interval(0, 4);
@@ -454,7 +454,7 @@ static int run_tests(){
   test_set_add_rotates_right_if_min_inserted_twice();
   test_set_add_rotates_left_if_max_inserted_twice();
   test_set_add_rotates_once_if_min_inserted_3_times();
-  test_set_add_maintains_ordering_in_nodes_with_depth_1();
+  test_set_add_maintains_ordering_in_nodes_with_height_1();
 }
 
 
