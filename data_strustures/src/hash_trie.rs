@@ -1,11 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryInto;
-use std::fs::OpenOptions;
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::rc::Rc;
-use std::borrow::BorrowMut;
-use std::cell::Cell;
 
 #[derive(Hash)]
 struct Person {
@@ -37,7 +32,7 @@ struct KeyEntry {
 }
 
 struct SubHashTable {
-    entries: [Option<Rc<dyn HashTableEntry>>; 16],
+    entries: [Option<Box<dyn HashTableEntry>>; 16],
 }
 
 pub struct HashTrie {
@@ -46,7 +41,7 @@ pub struct HashTrie {
 
 trait HashTableEntry {
     fn contains(&self, key: &u64, idx: u8) -> bool;
-    fn sub_hashed(&self, e: &Rc<dyn HashTableEntry>) -> Rc<dyn HashTableEntry>;
+    fn sub_hashed(self: Box<Self>) -> Box<SubHashTable>;
 }
 
 impl SubHashTable {
@@ -58,24 +53,12 @@ impl SubHashTable {
 
     fn add(&mut self, key: &u64, depth: u8) {
         let idx = sub_hash4(key, depth);
-        let tab = Rc::new(SubHashTable::new());
-        self.entries[idx] = Some(Rc::new(KeyEntry { key: *key }));
+        let maybe_entry = &self.entries[idx];
 
-        self.entries[idx]
-            .as_ref()
-            .map(|k| Rc::new(SubHashTable::new()));
-
-        self.entries[idx].as_ref().map(|k| {
-            let x = Rc::new(KeyEntry { key: *key });
-            x
-        });
-
-        match &self.entries[idx] {
-            None => {
-                self.entries[idx] = Some(Rc::new(KeyEntry { key: *key }));
-            }
+        match maybe_entry {
+            None => self.entries[idx] = Some(Box::new(KeyEntry { key: *key })),
             Some(entry) => {
-                self.entries[idx].as_ref().map(|k| entry.sub_hashed(k));
+                entry.sub_hashed();
             }
         }
     }
@@ -86,12 +69,9 @@ impl HashTableEntry for KeyEntry {
         *key == self.key
     }
 
-    fn sub_hashed(&self, e: &Rc<dyn HashTableEntry>) -> Rc<dyn HashTableEntry> {
-
-
-        let mut new_sub_hash = Rc::new(SubHashTable::new());
-
-        new_sub_hash.clone()
+    fn sub_hashed(self: Box<Self>) -> Box<SubHashTable> {
+        let new_box = Box::new(SubHashTable::new());
+        return new_box;
     }
 }
 
@@ -106,8 +86,8 @@ impl HashTableEntry for SubHashTable {
         }
     }
 
-    fn sub_hashed(&self, e: &Rc<dyn HashTableEntry>) -> Rc<dyn HashTableEntry> {
-        e.clone()
+    fn sub_hashed(self: Box<Self>) -> Box<SubHashTable> {
+        self
     }
 }
 
@@ -117,12 +97,9 @@ impl HashTrie {
             root: SubHashTable::new(),
         }
     }
-
     fn contains(&self, key: &u64) -> bool {
         self.root.contains(key, 0)
     }
-
-    fn add(&mut self, key: &u64) {}
 }
 
 mod test {
@@ -143,40 +120,5 @@ mod test {
         for i in 0..15 {
             assert_eq!(15, sub_hash4(&u64::max_value(), i));
         }
-    }
-
-    #[test]
-    fn test_sub_hash_table_contains() {
-        let mut sub_hash_table = SubHashTable::new();
-        let h = calc_hash(&42);
-        let i = sub_hash4(&h, 0);
-        let key_entry_ref: Rc<dyn HashTableEntry> = Rc::new(KeyEntry { key: h });
-
-        sub_hash_table.entries[i] = Some(key_entry_ref);
-        assert!(sub_hash_table.contains(&h, 0));
-    }
-
-    #[test]
-    fn test_sub_hash_table_refs() {
-        let h = calc_hash(&42);
-        let key_entry_ref: Rc<dyn HashTableEntry> = Rc::new(KeyEntry { key: h });
-        let i = sub_hash4(&h, 0);
-
-        let mut sub_hash_table0 = SubHashTable::new();
-        sub_hash_table0.entries[i] = Some(key_entry_ref.clone());
-
-        let mut sub_hash_table1 = SubHashTable::new();
-        sub_hash_table1.entries[i] = Some(key_entry_ref.clone());
-    }
-
-    #[test]
-    fn test_sub_hash_table_add_existing() {
-        let h = calc_hash(&42);
-        let key_entry_ref: Rc<dyn HashTableEntry> = Rc::new(KeyEntry { key: h });
-        let i = sub_hash4(&h, 0);
-
-        let mut sub_hash_table0 = Rc::new(SubHashTable::new());
-
-        sub_hash_table0.add(&h, 0);
     }
 }
