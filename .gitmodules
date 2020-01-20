@@ -1,3 +1,6 @@
 [submodule "schemin"]
 	path = schemin
 	url = git@github.com:thomasmatecki/schemin.git
+[submodule "taocp"]
+	path = taocp
+	url = https://github.com/thomasmatecki/taocp
