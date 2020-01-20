@@ -1,0 +1,3 @@
+[submodule "schemin"]
+	path = schemin
+	url = git@github.com:thomasmatecki/schemin.git
