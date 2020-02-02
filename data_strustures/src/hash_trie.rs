@@ -1,18 +1,6 @@
-use core::num::FpCategory::Subnormal;
-use std::borrow::{Borrow, BorrowMut};
-use std::cell::Cell;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryInto;
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::rc::Rc;
-
-#[derive(Hash)]
-struct Person {
-    id: u32,
-    name: String,
-    phone: u64,
-}
 
 fn calc_hash<T: Hash>(t: &T) -> u64 {
     let mut s = DefaultHasher::new();
@@ -30,7 +18,7 @@ fn sub_hash(hash: &u64, offset: u8) -> usize {
         .try_into()
         .unwrap()
 }
-
+#[derive(Debug)]
 enum Node {
     Empty,
     SubHashTable { entries: Box<[Entry; 16]> },
@@ -43,6 +31,7 @@ impl Default for Entry {
     }
 }
 
+#[derive(Debug)]
 struct Entry {
     node: Node,
 }
@@ -88,6 +77,14 @@ impl Entry {
             }
         }
     }
+
+    fn size(&self) -> u64 {
+        match &self.node {
+            Node::Empty => 0,
+            Node::HashKey { key: _existing_key } => 1,
+            Node::SubHashTable { entries } => entries.into_iter().map(|entry| entry.size()).sum(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -109,9 +106,86 @@ mod tests {
     }
 
     #[test]
-    fn it_empty_returns_false() {
+    fn it_does_not_contains_if_empty() {
         let entry = Entry { node: Node::Empty };
         assert!(!entry.contains(100, 0));
+    }
+
+    #[test]
+    fn it_contains_a_hash_after_it_is_inserted() {
+        let mut entry: Entry = Default::default();
+
+        for hash in 0..15 {
+            entry.add(hash, 0);
+            assert!(entry.contains(hash, 0));
+        }
+    }
+
+    #[test]
+    fn it_does_not_contain_a_hash_after_it_is_removed() {
+        let mut entry: Entry = Default::default();
+
+        for hash in 0..15 {
+            entry.add(hash, 0);
+            assert!(entry.contains(hash, 0));
+            assert_eq!(entry.size(), 1);
+            entry.remove(hash, 0);
+            assert!(!entry.contains(hash, 0));
+            assert_eq!(entry.size(), 0);
+        }
+    }
+
+    #[test]
+    fn it_does_not_contains_a_hash_that_is_not_inserted() {
+        let mut entry: Entry = Default::default();
+
+        for hash in 0..15 {
+            entry.add(hash, 0);
+        }
+
+        for hash in 16..32 {
+            assert!(!entry.contains(hash, 0));
+        }
+    }
+    struct Fibonacci {
+        curr: u64,
+        next: u64,
+    }
+
+    impl Iterator for Fibonacci {
+        // From https://doc.rust-lang.org/rust-by-example/trait/iter.html
+        type Item = u64;
+        fn next(&mut self) -> Option<u64> {
+            let new_next = self.curr + self.next;
+            self.curr = self.next;
+            self.next = new_next;
+            Some(self.curr)
+        }
+    }
+
+    impl Fibonacci {
+        fn new() -> Fibonacci {
+            Fibonacci { curr: 0, next: 1 }
+        }
+    }
+
+    #[test]
+    fn it_has_size_zero_if_empty() {
+        let entry = Entry { node: Node::Empty };
+        assert_eq!(entry.size(), 0);
+    }
+
+    #[test]
+    fn it_can_contain_fibonacci_numbers() {
+        let mut entry: Entry = Default::default();
+        let fib_seq = Fibonacci::new();
+
+        // The 93rd fibonacci number is more than 64 bits
+        for (i, hash) in fib_seq.skip(1).take(91).enumerate() {
+            assert_eq!(i as u64, entry.size());
+            entry.add(hash, 0);
+            assert!(entry.contains(hash, 0));
+        }
     }
 
     #[test]
