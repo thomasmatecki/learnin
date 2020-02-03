@@ -1,3 +1,6 @@
+extern crate rand;
+
+use rand::prelude::*;
 use std::collections::hash_map::DefaultHasher;
 use std::convert::TryInto;
 use std::hash::{Hash, Hasher};
@@ -38,18 +41,21 @@ struct Entry {
 
 impl Entry {
     fn add(&mut self, key: u64, depth: u8) {
-        let idx = sub_hash(&key, depth);
         match &mut self.node {
             Node::Empty => self.node = Node::HashKey { key: key },
             Node::SubHashTable { entries } => {
+                let idx = sub_hash(&key, depth);
                 &entries[idx].add(key, depth + 1);
             }
             Node::HashKey { key: existing_key } if *existing_key != key => {
                 let mut entries: Box<[Entry; 16]> = Box::new(Default::default());
-                &entries[idx].add(key, depth);
 
-                let idx = sub_hash(existing_key, depth);
-                &entries[idx].add(*existing_key, depth);
+                let existing_key_idx = sub_hash(existing_key, depth);
+                &entries[existing_key_idx].add(*existing_key, depth + 1);
+
+                let idx = sub_hash(&key, depth);
+                &entries[idx].add(key, depth + 1);
+
                 self.node = Node::SubHashTable { entries: entries };
             }
             _ => {}
@@ -207,5 +213,17 @@ mod tests {
         for hash in 0..15 {
             entry.add(hash, 0);
         }
+    }
+
+    #[test]
+    fn it_can_contain_many_u64s() {
+        let mut entry: Entry = Default::default();
+
+        for _ in 0..10000000 {
+            let hash: u64 = random();
+            entry.add(hash, 0);
+        }
+
+        assert_eq!(entry.size(), 10000000)
     }
 }
