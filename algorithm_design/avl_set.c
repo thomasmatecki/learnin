@@ -1,9 +1,7 @@
 /*
- * The Algorithm Cookbook, Steven S. Skiena
- * 1.3: An optimal Scheduling Algorithm
- *
- * c is hard
+ * An AVL set of integer intervals
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,13 +11,6 @@
 #define CHECKED_HEIGHT(node_symb) (node_symb ? node_symb->height : 0)
 #define MODE_NORMAL 0
 #define MODE_TEST 1
-
-
-/*
- * First, we need a 'Set' data structure to hold our intervals. I'll
- * give an AVL tree a try.
- */
-char SPLIT_CHAR = ' ';
 
 typedef struct Interval {
   int from;
@@ -190,17 +181,20 @@ static _s_interval_set_node *insert(_s_interval_set_node *node,
 }
 
 /*
- *
+ * Recursively descend and remove the minimum element from
+ * `node`. set popped_node_depth->node to the removed node
+ * and return the new root node.
  */
-static _s_node_depth pop_left(_s_interval_set_node *node) {
-  _s_node_depth popped_node = {NULL, 0};
+static _s_interval_set_node *pop_left(
+  _s_interval_set_node *node,
+  _s_node_depth *popped_node_depth
+) {
 
   if (node && node->left) {
-    popped_node = pop_left(node->left);
+    node->left = pop_left(node->left, popped_node_depth);
+    if (popped_node_depth->depth == 0) {
 
-    if (popped_node.depth == 0) {
-
-      if (popped_node.node->right) {
+      if (popped_node_depth->node->right) {
         /* with C as `node`, if popping A
          *     C           C
          *    / \         / \
@@ -208,7 +202,7 @@ static _s_node_depth pop_left(_s_interval_set_node *node) {
          *    \     =>
          *     D
          */
-        node->left = popped_node.node->right;
+        node->left = popped_node_depth->node->right;
         node->left->height = 1;
       } else {
         /* with C as `node`, if popping D
@@ -225,12 +219,15 @@ static _s_node_depth pop_left(_s_interval_set_node *node) {
       node->left = balance_tree(node->left);
     }
 
-    popped_node.depth++;
+    popped_node_depth->depth++;
+    return node;
   } else {
-    popped_node.node = node;
+    popped_node_depth->node = node;
+    if (node){
+      return node->right;
+    }
+    return NULL;
   }
-
-  return popped_node;
 }
 
 /*
@@ -244,10 +241,12 @@ static void set_add(interval_set *set, s_interval *interval) {
  *
  */
 static s_interval *set_pop_min(interval_set *set) {
-  _s_node_depth popped_node = pop_left(set->head);
+
+  _s_node_depth popped_node = {NULL, 0};
+  set->head = pop_left(set->head, &popped_node);
 
   if (popped_node.depth == 0) {
-    set->head == NULL;
+    set->head = NULL;
   }
 
   if (!popped_node.node) {
@@ -260,38 +259,6 @@ static s_interval *set_pop_min(interval_set *set) {
 
 }
 
-/*
- *
- */
-s_interval *parse_line(char *line) {
-  char *split_ptr = strchr(line, SPLIT_CHAR);
-
-  int split_idx = split_ptr - line;
-  line[split_idx] = '\0';
-
-  s_interval *i0 = malloc(sizeof(s_interval));
-  i0->from = atoi(line);
-  i0->to = atoi(split_ptr + 1);
-  return i0;
-}
-
-/*
- *
- */
-static void print_set_node(_s_interval_set_node *node) {
-  int i;
-
-  if (node) {
-    print_set_node(node->left);
-    for (i = 0; i < node->height; i++) {
-      printf(".");
-    }
-    print_interval(node->val);
-    printf("\n");
-    print_set_node(node->right);
-  }
-}
-
 static s_interval *new_interval(int from, int to) {
   s_interval *i0 = malloc(sizeof(s_interval));
 
@@ -300,12 +267,7 @@ static s_interval *new_interval(int from, int to) {
   return i0;
 }
 
-static void optimal_schedule(interval_set *set) {
-  set_pop_min(set);
-}
-
-
-static int test_set_add_inserts_interval_at_root(){
+static void test_set_add_inserts_interval_at_root(){
   interval_set *set = new_set();
   s_interval *i0 = new_interval(0, 3);
   set_add(set, i0);
@@ -317,7 +279,7 @@ static int test_set_add_inserts_interval_at_root(){
   assert(set->head->height == 1);
 }
 
-static int test_set_add_inserts_min_interval_at_left(){
+static void test_set_add_inserts_min_interval_at_left(){
   interval_set *set = new_set();
   s_interval *i0 = new_interval(1, 3);
   s_interval *i1 = new_interval(1, 2);
@@ -336,7 +298,7 @@ static int test_set_add_inserts_min_interval_at_left(){
   assert(set->head->height == 2);
 }
 
-static int test_set_add_inserts_max_interval_at_right(){
+static void test_set_add_inserts_max_interval_at_right(){
   interval_set *set = new_set();
   s_interval *i0 = new_interval(1, 2);
   s_interval *i1 = new_interval(1, 3);
@@ -355,7 +317,7 @@ static int test_set_add_inserts_max_interval_at_right(){
   assert(set->head->height == 2);
 }
 
-static int test_set_add_rotates_right_if_min_inserted_twice(){
+static void test_set_add_rotates_right_if_min_inserted_twice(){
   interval_set *set = new_set();
   s_interval *i0 = new_interval(0, 3);
   s_interval *i1 = new_interval(0, 2);
@@ -383,7 +345,7 @@ static int test_set_add_rotates_right_if_min_inserted_twice(){
   assert(set->head->left->right == NULL);
 }
 
-static int test_set_add_rotates_left_if_max_inserted_twice(){
+static void test_set_add_rotates_left_if_max_inserted_twice(){
   interval_set *set = new_set();
   s_interval *i0 = new_interval(0, 3);
   s_interval *i1 = new_interval(0, 2);
@@ -411,7 +373,7 @@ static int test_set_add_rotates_left_if_max_inserted_twice(){
   assert(set->head->left->right == NULL);
 }
 
-static int test_set_add_rotates_once_if_min_inserted_3_times(){
+static void test_set_add_rotates_once_if_min_inserted_3_times(){
   interval_set *set = new_set();
 
   s_interval *i0 = new_interval(0, 4);
@@ -428,7 +390,7 @@ static int test_set_add_rotates_once_if_min_inserted_3_times(){
   assert(NULL == set->head->left->right);
 }
 
-static int test_set_add_maintains_ordering_in_nodes_with_height_1(){
+static void test_set_add_maintains_ordering_in_nodes_if_height_1(){
   interval_set *set = new_set();
 
   s_interval *i0 = new_interval(0, 4);
@@ -445,7 +407,48 @@ static int test_set_add_maintains_ordering_in_nodes_with_height_1(){
   assert(NULL == set->head->left->left);
 }
 
-static int run_tests(){
+static void test_set_pop_min_returns_null_if_set_empty(){
+  interval_set *set = new_set();
+  s_interval *i0 = set_pop_min(set);
+  assert(i0 == NULL);
+}
+
+static void test_set_pop_min_returns_min_node_if_height_1(){
+  interval_set *set = new_set();
+  s_interval *i0 = new_interval(0, 4);
+  set_add(set, i0);
+  s_interval *i1 = set_pop_min(set);
+  assert(i1 == i0);
+  assert(set->head == NULL);
+}
+
+static void test_set_pop_min_returns_min_node_if_height_2(){
+  interval_set *set = new_set();
+
+  s_interval *i1 = new_interval(0, 3);
+  s_interval *i2 = new_interval(0, 1);
+  s_interval *i3 = new_interval(0, 2);
+  s_interval *i0;
+
+  set_add(set, i1);
+  set_add(set, i2);
+  set_add(set, i3);
+
+  i0 = set_pop_min(set);
+  assert(i0 == i2);
+  
+  i0 = set_pop_min(set);
+  assert(i0 == i3);
+  
+  i0 = set_pop_min(set);
+  //assert(i0 == i1);
+  
+  assert(set->head == NULL);
+}
+
+
+int main(int argc, char *argv[]) {
+
   printf("Running tests...");
 
   test_set_add_inserts_interval_at_root();
@@ -454,55 +457,10 @@ static int run_tests(){
   test_set_add_rotates_right_if_min_inserted_twice();
   test_set_add_rotates_left_if_max_inserted_twice();
   test_set_add_rotates_once_if_min_inserted_3_times();
-  test_set_add_maintains_ordering_in_nodes_with_height_1();
-}
+  test_set_add_maintains_ordering_in_nodes_if_height_1();
+  test_set_pop_min_returns_null_if_set_empty();
+  test_set_pop_min_returns_min_node_if_height_1();
+  test_set_pop_min_returns_min_node_if_height_2();
 
-
-static int mode_flag = MODE_NORMAL;
-
-static struct option long_options[] ={
-  {"test", no_argument,  &mode_flag, MODE_TEST},
-  {0,0,0,0}
-};
-
-
-/*
- *
- */
-int main(int argc, char *argv[]) {
-
-  int c;
-  int option_index = 0;
-  while (-1 != getopt_long (argc, argv, "v", long_options, &option_index)){
-    option_index = 0;
-  }
-
-  if (MODE_TEST == mode_flag){
-    run_tests();
-  } else{
-    interval_set *set = new_set();
-
-    print_set_node(set->head);
-
-    FILE *f_in = fopen("./data/intervals1.dat", "r");
-
-    char buf[100] = {'\0'};
-    char *line;
-
-    do {
-      line = fgets(buf, 100, f_in);
-
-      if (line) {
-        s_interval *i0 = parse_line(line);
-        set_add(set, i0);
-      }
-
-    } while (line);
-    fclose(f_in);
-
-    // print_set_node(set->head);
-    optimal_schedule(set);
-
-  }
   return 0;
 }
