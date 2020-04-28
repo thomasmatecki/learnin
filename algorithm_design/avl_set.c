@@ -245,9 +245,9 @@ static s_interval *set_pop_min(interval_set *set) {
   _s_node_depth popped_node = {NULL, 0};
   set->head = pop_left(set->head, &popped_node);
 
-  if (popped_node.depth == 0) {
-    set->head = NULL;
-  }
+  // if (popped_node.depth == 0) {
+  //   set->head = NULL;
+  // }
 
   if (!popped_node.node) {
     return NULL;
@@ -441,7 +441,7 @@ static void test_set_pop_min_returns_min_node_if_height_2(){
   assert(i0 == i3);
   
   i0 = set_pop_min(set);
-  //assert(i0 == i1);
+  assert(i0 == i1);
   
   assert(set->head == NULL);
 }
