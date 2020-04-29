@@ -36,13 +36,6 @@ typedef struct BackTracedNode {
 /*
  *
  */
-static void print_interval(s_interval *interval) {
-  printf("%d ... %d", interval->from, interval->to);
-}
-
-/*
- *
- */
 int max_height(_s_interval_set_node *node_a, _s_interval_set_node *node_b) {
   int a_height = CHECKED_HEIGHT(node_a);
   int b_height = CHECKED_HEIGHT(node_b);
@@ -245,15 +238,12 @@ static s_interval *set_pop_min(interval_set *set) {
   _s_node_depth popped_node = {NULL, 0};
   set->head = pop_left(set->head, &popped_node);
 
-  // if (popped_node.depth == 0) {
-  //   set->head = NULL;
-  // }
-
   if (!popped_node.node) {
     return NULL;
   } else {
     _s_interval_set_node *min_node = popped_node.node;
     s_interval *ret = min_node->val;
+    free(min_node);
     return ret;
   }
 
@@ -415,9 +405,11 @@ static void test_set_pop_min_returns_null_if_set_empty(){
 
 static void test_set_pop_min_returns_min_node_if_height_1(){
   interval_set *set = new_set();
+
   s_interval *i0 = new_interval(0, 4);
   set_add(set, i0);
   s_interval *i1 = set_pop_min(set);
+
   assert(i1 == i0);
   assert(set->head == NULL);
 }
@@ -446,6 +438,36 @@ static void test_set_pop_min_returns_min_node_if_height_2(){
   assert(set->head == NULL);
 }
 
+static void test_set_pop_min_add_and_remove(){
+  interval_set *set = new_set();
+
+  s_interval *i0 = new_interval(0, 3);
+  s_interval *i1 = new_interval(0, 4);
+  s_interval *i2 = new_interval(0, 2);
+  s_interval *i3 = new_interval(0, 1);
+
+  set_add(set, i0);
+  set_add(set, i1);
+  set_add(set, i2);
+  assert(i2 == set_pop_min(set));
+  set_add(set, i2);
+  set_add(set, i3);
+
+  assert(i3 == set_pop_min(set));
+  assert(i2 == set_pop_min(set));
+  assert(i0 == set_pop_min(set));
+  assert(i1 == set_pop_min(set));
+  
+  assert(set->head == NULL);
+}
+
+static void test_set_remains_balanced(){
+  interval_set *set = new_set();
+
+  for (int i = 0; i < 512; i++){
+    set_add(set, new_interval(0, i));
+  }
+}
 
 int main(int argc, char *argv[]) {
 
@@ -461,6 +483,8 @@ int main(int argc, char *argv[]) {
   test_set_pop_min_returns_null_if_set_empty();
   test_set_pop_min_returns_min_node_if_height_1();
   test_set_pop_min_returns_min_node_if_height_2();
+  test_set_pop_min_add_and_remove();
+  test_set_remains_balanced();
 
   return 0;
 }
