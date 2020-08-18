@@ -1,4 +1,5 @@
 pub mod hash_trie;
+pub mod first;
 
 #[cfg(test)]
 mod tests {
