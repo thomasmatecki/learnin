@@ -42,7 +42,7 @@ struct Entry {
 impl Entry {
     fn add(&mut self, key: u64, depth: u8) {
         match &mut self.node {
-            Node::Empty => self.node = Node::HashKey { key: key },
+            Node::Empty => self.node = Node::HashKey { key },
             Node::SubHashTable { entries } => {
                 let idx = sub_hash(&key, depth);
                 &entries[idx].add(key, depth + 1);
@@ -56,7 +56,7 @@ impl Entry {
                 let idx = sub_hash(&key, depth);
                 &entries[idx].add(key, depth + 1);
 
-                self.node = Node::SubHashTable { entries: entries };
+                self.node = Node::SubHashTable { entries };
             }
             _ => {}
         }
