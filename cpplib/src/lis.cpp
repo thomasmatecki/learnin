@@ -11,8 +11,10 @@
  *  e.g for 
  * 
  * [5 7 4 -3 9 1 10 4 5 8 9 3]
+ *  
  */
 
+template <typename T>
 int lis(int Ac, int Av[])
 {
     assert(Ac > 0);
