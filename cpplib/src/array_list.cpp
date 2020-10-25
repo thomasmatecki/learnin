@@ -3,7 +3,7 @@
  */
 #include <cstring>
 #include <iostream>
-#include "array_list.h"
+#include "array_list.hpp"
 
 template <class T>
 void ArrayList<T>::append(T *elem)
@@ -14,30 +14,13 @@ void ArrayList<T>::append(T *elem)
   }
   elements[count] = elem;
   count++;
-};
+}
 
 template <class T>
-T *ArrayList<T>::operator[](int idx)
+T * ArrayList<T>::get(int index)
 {
-  return elements[idx];
-};
-
-int main()
-{
-  ArrayList<int> a;
-
-  for (int i = 3; i < 20; i++)
-  {
-    int *v = new int;
-    *v = i;
-    a.append(v);
-  }
-
-  for (int i = 0; i < 17; i++)
-  {
-    std::cout << *a[i];
-    std::cout << '\n';
-  }
-
-  return 0;
+  return this->elements[index];
 }
+
+
+template class ArrayList<char>;
