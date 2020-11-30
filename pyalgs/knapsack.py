@@ -2,33 +2,6 @@ from functools import singledispatchmethod, total_ordering
 from typing import List, NamedTuple, Tuple
 
 
-class Table:
-    def __init__(self, rows, cols):
-        self.cols = cols
-        self.data = [0] * rows * cols
-
-    def idx(self, row, col):
-        assert col < self.cols, "column out of range"
-        return (row * self.cols) + col
-
-    def _get(self, row, col):
-        return self.data[self.idx(row, col)]
-
-    def _set(self, row, col, val):
-        self.data[self.idx(row, col)] = val
-
-    def __repr__(self):
-        remaining = self.data
-        rows = []
-
-        while remaining:
-            rows.append(",".join(map(repr, remaining[: self.cols])))
-            remaining = remaining[self.cols :]
-
-        r = "\n".join(rows)
-        return r
-
-
 class Parcel(NamedTuple):
     weight: int
     value: int
@@ -50,7 +23,7 @@ class Allocation(NamedTuple):
         return self.weight < other.weight
 
     def __repr__(self):
-        return f"|{self.weight},{self.value}|"
+        return f"({self.weight},{self.value})"
 
     @singledispatchmethod
     def __add__(self, other):
@@ -66,15 +39,16 @@ class Table:
         self.cols = cols
         self.data = [Allocation()] * rows * cols
 
-    def idx(self, row, col):
-        assert col < self.cols, "column out of range"
+    def _idx(self, row, col):
+        if not col < self.cols:
+            raise IndexError("column out of range")
         return (row * self.cols) + col
 
     def get(self, row, col):
-        return self.data[self.idx(row, col)]
+        return self.data[self._idx(row, col)]
 
     def set(self, row, col, val):
-        self.data[self.idx(row, col)] = val
+        self.data[self._idx(row, col)] = val
 
     def __repr__(self):
         remaining = self.data
