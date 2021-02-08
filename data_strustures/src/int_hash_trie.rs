@@ -247,5 +247,3 @@ mod tests {
         }
 
         assert_eq!(entry.size(), 10000000)
-    }
-}
