@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "data_strustures"
+		},
+		{
+			"path": "camlin"
+		}
+	],
+	"settings": {
+		"ocaml.sandbox": {
+			"kind": "opam",
+			"switch": "default"
+		}
+	}
+}

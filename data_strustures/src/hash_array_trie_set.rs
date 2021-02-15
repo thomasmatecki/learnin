@@ -1,4 +1,5 @@
 use crate::hash_array_trie_set::Node::Value;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::mem::replace;
 use std::ops::Index;
@@ -73,109 +74,128 @@ impl<T> Default for Node<T> {
     }
 }
 
-impl<T> Node<T> {
-    fn new_table(elem: &T) -> Node<T> {
+impl<T> Node<T>
+where
+    T: Hash,
+{
+    fn new_table(elems: &[&T]) -> Node<T> {
         Node::HashTable(Box::new(Default::default()))
     }
 
     #[inline]
-    fn insert(&mut self, elem: T) {
+    fn insert(&mut self, elem: T, hash: &u64) {
+        let idx = (hash & 0b1000_0000_0000_1111) as usize;
+
         match self {
-            Node::Empty => {
-                let _ = replace(self, Value(elem));
+            Node::Empty => *self = Value(elem),
+            Node::Value(value_elem) => *self = Node::new_table(&[&elem, &value_elem]),
+            Node::HashTable(table) => {
+                table[idx].insert(elem, &(hash >> 4));
             }
-            Node::Value(_) => {
-                let _ = replace(self, Node::new_table(&elem));
-            }
-            Node::HashTable(_) => {}
         };
     }
 }
 
 struct HashArrayTrieSet<T: Hash> {
+    hasher: DefaultHasher,
     root: Node<T>,
 }
 
-impl<T: Hash> HashArrayTrieSet<T> {}
+impl<T: Hash> HashArrayTrieSet<T> {
+    fn new() -> Self {
+        HashArrayTrieSet {
+            hasher: DefaultHasher::default(),
+            root: Node::default(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
+
     use super::BitMaskedTable;
-    mod index_for {
+    mod hash_array_trie {
+        use super::BitMaskedTable;
+    }
+    mod bit_masked_table {
         use super::BitMaskedTable;
 
-        #[test]
-        fn test_single_put() {
-            let bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            for index in 0..16 {
-                let table_index = bmt._index_for(index);
-                assert_eq!(table_index, 0);
+        mod index_for {
+            use super::BitMaskedTable;
+
+            #[test]
+            fn test_single_put() {
+                let bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                for index in 0..16 {
+                    let table_index = bmt._index_for(index);
+                    assert_eq!(table_index, 0);
+                }
+            }
+
+            #[test]
+            fn test_incre_put() {
+                use super::BitMaskedTable;
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                assert_eq!(bmt._index_for(3), 0);
+                bmt.put(3, &element);
+                assert_eq!(bmt._index_for(4), 1);
+                assert_eq!(&bmt[3], &element);
+            }
+            #[test]
+            fn test_decre_put() {
+                use super::BitMaskedTable;
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                assert_eq!(bmt._index_for(4), 0);
+                bmt.put(3, &element);
+                assert_eq!(bmt._index_for(3), 0);
+            }
+
+            #[test]
+            fn test_max_put() {
+                use super::BitMaskedTable;
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                assert_eq!(bmt._index_for(15), 0);
+                bmt.put(15, &element);
+                assert_eq!(bmt._index_for(0), 0);
             }
         }
 
-        #[test]
-        fn test_incre_put() {
+        mod put {
+
             use super::BitMaskedTable;
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            assert_eq!(bmt._index_for(3), 0);
-            bmt.put(3, &element);
-            assert_eq!(bmt._index_for(4), 1);
-            assert_eq!(&bmt[3], &element);
-        }
-        #[test]
-        fn test_decre_put() {
-            use super::BitMaskedTable;
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            assert_eq!(bmt._index_for(4), 0);
-            bmt.put(3, &element);
-            assert_eq!(bmt._index_for(3), 0);
-        }
+            #[test]
+            fn test_insert() {
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                bmt.put(3, &element);
+                assert_eq!(bmt.get(3).unwrap(), &element);
+            }
+            #[test]
+            fn test_max_insert() {
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                bmt.put(15, &element);
+                assert_eq!(bmt.mask, 1);
+            }
+            #[test]
+            fn test_min_insert() {
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                bmt.put(0, &element);
+                assert_eq!(bmt.mask, 0b1000_0000_0000_0000);
+            }
 
-        #[test]
-        fn test_max_put() {
-            use super::BitMaskedTable;
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            assert_eq!(bmt._index_for(15), 0);
-            bmt.put(15, &element);
-            assert_eq!(bmt._index_for(0), 0);
-        }
-    }
-
-    mod put {
-
-        use super::BitMaskedTable;
-        #[test]
-        fn test_insert() {
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            bmt.put(3, &element);
-            assert_eq!(bmt.get(3).unwrap(), &element);
-        }
-        #[test]
-        fn test_max_insert() {
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            bmt.put(15, &element);
-            assert_eq!(bmt.mask, 1);
-        }
-        #[test]
-        fn test_min_insert() {
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            bmt.put(0, &element);
-            assert_eq!(bmt.mask, 0b1000_0000_0000_0000);
-        }
-
-        #[test]
-        #[should_panic]
-        fn test_duplicate_insert() {
-            let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
-            let element = "the quick brown dog";
-            bmt.put(0, &element);
-            bmt.put(0, &element);
+            #[test]
+            #[should_panic]
+            fn test_duplicate_insert() {
+                let mut bmt: BitMaskedTable<&str> = BitMaskedTable::new();
+                let element = "the quick brown dog";
+                bmt.put(0, &element);
+                bmt.put(0, &element);
+            }
         }
     }
 }
